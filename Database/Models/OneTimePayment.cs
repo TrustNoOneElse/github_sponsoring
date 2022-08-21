@@ -12,7 +12,7 @@ public class OneTimePayment
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public long Id { get; set; }
+    public int Id { get; set; }
 
     public int TotalInCent { get; set; }
 

@@ -7,7 +7,7 @@ public struct Repository
     public string? name { get; set; }
     public string? full_name { get; set; }
     public bool @private { get; set; }
-    public Person owner { get; set; }
+    public GitHubEntity owner { get; set; }
     public string html_url { get; set; }
     public string? description { get; set; }
     public bool fork { get; set; }

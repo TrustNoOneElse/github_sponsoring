@@ -15,7 +15,9 @@ builder.Services.AddDbContext<DatabaseContext>(options =>
     options.UseMySQL(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 builder.Services.AddScoped<ISponsorshipService, SponsorshipService>();
+builder.Services.AddHttpClient<GitHubGraphQLService>();
 builder.Services.AddControllers();
+#region CronJob
 builder.Services.AddQuartz(q =>
 {
     q.SchedulerId = "Scheduler-Core";
@@ -41,6 +43,7 @@ builder.Services.Configure<QuartzOptions>(options =>
     options.Scheduling.OverWriteExistingData = true; // default: true
 });
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+#endregion CronJob
 if (builder.Environment.IsDevelopment())
 {
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -52,23 +55,23 @@ if (builder.Environment.IsDevelopment())
 
 #region App Configuration
 var app = builder.Build();
-// Configure the HTTP request pipeline.
+// Add Swagger if in development
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseHttpsRedirection();
 }
-
-app.UseHttpsRedirection();
 
 app.UseCors(CorsPolicyBuilder =>
 {
+    // we will handle that in nginx proxy
     CorsPolicyBuilder.AllowAnyOrigin();
     CorsPolicyBuilder.WithHeaders("Content-Type", "X-Hub-Signature-256", "X-GitHub-Event", "X-GitHub-Delivery");
-    CorsPolicyBuilder.WithMethods("POST", "OPTIONS");
+    CorsPolicyBuilder.WithMethods("POST", "OPTIONS", "GET");
 });
 
-// make sure database is filled
+// make sure database is existing
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<DatabaseContext>();

@@ -1,0 +1,48 @@
+query ($loginName: String!) {
+  user(login: $loginName) {
+    sponsorshipForViewerAsSponsorable {
+      tier {
+        id
+        name
+        isOneTime
+        isCustomAmount
+        monthlyPriceInDollars
+        monthlyPriceInCents
+        closestLesserValueTier {
+          id
+          name
+        }
+      }
+      id
+      isOneTimePayment
+      tierSelectedAt
+    }
+    databaseId
+    login
+    name
+    email
+  }
+  organization(login: $loginName) {
+    sponsorshipForViewerAsSponsorable {
+      tier {
+        id
+        name
+        isOneTime
+        isCustomAmount
+        monthlyPriceInDollars
+        monthlyPriceInCents
+        closestLesserValueTier {
+          id
+          name
+        }
+      }
+      id
+      isOneTimePayment
+      tierSelectedAt
+    }
+    databaseId
+    login
+    name
+    email
+  }
+}

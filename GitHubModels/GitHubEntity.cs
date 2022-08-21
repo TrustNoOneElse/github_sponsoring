@@ -1,9 +1,12 @@
 namespace GithubSponsorsWebhook.GitHubModels;
 
-public struct Person
+public struct GitHubEntity
 {
     public string login { get; set; }
-    public long id { get; set; }
+    /**
+    * Database id of the user.
+    */
+    public int id { get; set; }
     public string node_id { get; set; }
     public string? avatar_url { get; set; }
     public string? gravatar_id { get; set; }

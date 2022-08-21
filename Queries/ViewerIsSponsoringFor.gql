@@ -1,0 +1,8 @@
+query ($loginName: String!) {
+  user(login: $loginName) {
+    viewerIsSponsoring
+  }
+  organization(login: $loginName) {
+    viewerIsSponsoring
+  }
+}

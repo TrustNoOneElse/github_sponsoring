@@ -5,11 +5,13 @@ namespace GithubSponsorsWebhook.Utils;
 
 public static class GitHubVerify
 {
+    private const string SHA_IDENTIFIER = "sha256=";
+
     public static bool VerifySignature(string sha256Header, string payload, ILogger _logger)
     {
-        if (sha256Header.StartsWith("sha256=", StringComparison.OrdinalIgnoreCase))
+        if (sha256Header.StartsWith(SHA_IDENTIFIER, StringComparison.OrdinalIgnoreCase))
         {
-            var signature = sha256Header.Substring("sha256=".Length);
+            var signature = sha256Header.Substring(SHA_IDENTIFIER.Length);
             var secretFromEnv = Environment.GetEnvironmentVariable("GITHUB_WEBHOOK_SECRET");
             if (secretFromEnv == null)
             {

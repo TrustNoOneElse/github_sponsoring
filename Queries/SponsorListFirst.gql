@@ -1,0 +1,43 @@
+query {
+  viewer {
+    sponsorshipsAsMaintainer(includePrivate: true, first: 100) {
+      edges {
+        node {
+          sponsorEntity {
+            __typename
+            ... on User {
+              login
+              email
+              name
+              databaseId
+            }
+            ... on Organization {
+              login
+              email
+              name
+              databaseId
+            }
+          }
+          tier {
+            id
+            name
+            isOneTime
+            isCustomAmount
+            monthlyPriceInDollars
+            monthlyPriceInCents
+            closestLesserValueTier {
+              id
+              name
+            }
+          }
+          isOneTimePayment
+          tierSelectedAt
+        }
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+    }
+  }
+}

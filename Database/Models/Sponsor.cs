@@ -16,13 +16,13 @@ public class Sponsor
     [StringLength(254)]
     public string? LoginName { get; set; }
 
-    public long DatabaseId { get; set; }
+    public int DatabaseId { get; set; }
 
     public GithubType GithubType { get; set; }
 
-    public long TotalSpendInCent { get; set; }
+    public int TotalSpendInCent { get; set; }
 
-    public long TotalSpendInDollar { get; set; }
+    public int TotalSpendInDollar { get; set; }
 
     public virtual Tier? CurrentTier { get; set; }
 
