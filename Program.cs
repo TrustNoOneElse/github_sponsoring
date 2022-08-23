@@ -34,7 +34,7 @@ builder.Services.AddQuartz(q =>
     q.UseTimeZoneConverter();
     q.ScheduleJob<SponsoringJob>((trigger) => trigger
         .WithIdentity("GithubSponsorsWebhook")
-        .WithCronSchedule("0 0/1 * * * ?")
+        .WithCronSchedule("0 0 0/4 * * ?")
         .StartNow());
 });
 builder.Services.AddScoped<SponsoringJob>();
