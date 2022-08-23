@@ -2,8 +2,8 @@ namespace GithubSponsorsWebhook.GitHubGraphQLModels;
 
 public struct GitHubEntity
 {
-    public bool isSponsoringViewer { get; set; }
-    public bool viewerIsSponsoring { get; set; }
+    public bool? isSponsoringViewer { get; set; }
+    public bool? viewerIsSponsoring { get; set; }
 
     public string login { get; set; }
 

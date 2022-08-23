@@ -15,7 +15,9 @@ builder.Services.AddDbContext<DatabaseContext>(options =>
     options.UseMySQL(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 builder.Services.AddScoped<ISponsorshipService, SponsorshipService>();
-builder.Services.AddHttpClient<GitHubGraphQLService>();
+builder.Services.AddScoped<IGitHubService, GitHubService>();
+builder.Services.AddScoped<IGitHubPaymentService, GitHubPaymentService>();
+builder.Services.AddHttpClient<HttpClientGitHubGraphQLService>();
 builder.Services.AddControllers();
 #region CronJob
 builder.Services.AddQuartz(q =>

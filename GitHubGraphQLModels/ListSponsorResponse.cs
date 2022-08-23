@@ -14,5 +14,5 @@ public struct PageInfo
 
 public struct SponsorshipEdge
 {
-    public Sponsorship node { get; set; }
+    public SponsorshipNode node { get; set; }
 }

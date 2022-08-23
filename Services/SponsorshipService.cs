@@ -81,16 +81,27 @@ public class SponsorshipService : ISponsorshipService
             if (tier != null)
             {
                 tier.IsCancelled = true;
+                _databaseContext.Tiers.Update(tier);
                 _databaseContext.SaveChanges();
             }
         }
     }
 
+    /**
+    * Updates the Sponsor by DatabaseId, because login can be changed from the user
+    * @param sponsorEvent contains the new tier information
+    */
     private void UpdateSponsor(SponsorEvent sponsorEvent)
     {
         var sponsor = _databaseContext.Sponsors.Where(s => s.DatabaseId == sponsorEvent.DatabaseId && s.GithubType == sponsorEvent.GithubType).Include(s => s.CurrentTier).First();
         if (sponsor != null)
         {
+            // Login Name can change
+            if (sponsor.LoginName != sponsorEvent.LoginName)
+            {
+                sponsor.LoginName = sponsorEvent.LoginName;
+                _databaseContext.Sponsors.Update(sponsor);
+            }
             var tier = sponsor.CurrentTier;
             if (tier != null)
             {
@@ -99,6 +110,7 @@ public class SponsorshipService : ISponsorshipService
                 tier.MonthlyPriceInDollar = sponsorEvent.Tier.monthly_price_in_dollars;
                 tier.LatestChangeAt = sponsorEvent.Tier.created_at;
                 tier.CurrentCalculatedIntervalInMonth = -1;
+                _databaseContext.Tiers.Update(tier);
             }
             // API doesnt clearly say it, but they could change from one time payment to an actual tier
             else
@@ -143,7 +155,8 @@ public class SponsorshipService : ISponsorshipService
                 LoginName = sponsorEvent.LoginName,
                 GithubType = sponsorEvent.GithubType,
                 TotalSpendInCent = 0,
-                TotalSpendInDollar = 0
+                TotalSpendInDollar = 0,
+                firstSponsoredAt = DateTime.Now
             };
             trackedSponsorEntity = _databaseContext.Sponsors.Add(sponsor);
         }

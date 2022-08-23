@@ -16,6 +16,8 @@ public class Sponsor
     [StringLength(254)]
     public string? LoginName { get; set; }
 
+    public DateTime firstSponsoredAt { get; set; }
+
     public int DatabaseId { get; set; }
 
     public GithubType GithubType { get; set; }

@@ -1,8 +1,4 @@
-using System.Text.Json;
-using GithubSponsorsWebhook.GitHubModels;
-using GithubSponsorsWebhook.Models;
 using GithubSponsorsWebhook.Services;
-using GithubSponsorsWebhook.Utils;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GithubSponsorsWebhook.Controllers;
@@ -11,60 +7,52 @@ namespace GithubSponsorsWebhook.Controllers;
 [Route("[controller]")]
 public class GitHubController : ControllerBase
 {
+    private readonly IGitHubService _gitHubService;
     private readonly ILogger<GitHubController> _logger;
-    private readonly ISponsorshipService _sponsorshipService;
-    private readonly IWebHostEnvironment _env;
-
-    public GitHubController(ILogger<GitHubController> logger, ISponsorshipService sponsorshipService, IWebHostEnvironment env)
+    private readonly IGitHubPaymentService _gitHubPaymentService;
+    public GitHubController(IGitHubService gitHubService, ILogger<GitHubController> logger, IGitHubPaymentService gitHubPaymentService)
     {
+        _gitHubService = gitHubService;
         _logger = logger;
-        _sponsorshipService = sponsorshipService;
-        _env = env;
+        _gitHubPaymentService = gitHubPaymentService;
     }
 
-
-    [HttpPost("sponsorship")]
-    [Consumes("application/json")]
-    public IActionResult Sponsorship([FromBody] JsonDocument json, [FromHeader(Name = "X-Hub-Signature-256")] string sha256Secret)
+    [HttpGet("sponsor/by/login")]
+    public async Task<IActionResult> GetSponsorByLogin([FromQuery] string login)
     {
-        // Normally you would throw Unauthorized, but for the bad case we dont want to show that he used the wrong secret
-        if (!_env.IsDevelopment() && !GitHubVerify.VerifySignature(sha256Secret, json.ToJsonString(), _logger))
+        var sponsor = await _gitHubService.GetSponsorDataByLogin(login);
+        if (!sponsor.HasValue)
             return NotFound();
-        JsonElement root = json.RootElement;
-        // Check if its a sponsorship Event
-        if (root.TryGetProperty("action", out JsonElement action))
-        {
-            var sponsorEvent = SponsorshipEventFactory.CreateSponsorEvent(root);
-            if (sponsorEvent != null)
-            {
-                _sponsorshipService.ProcessSponsorEvent((SponsorEvent)sponsorEvent);
-            }
-        }
-        // check if its a ping event
-        else if (root.TryGetProperty("zen", out JsonElement zen))
-        {
-            var pingEvent = JsonSerializer.Deserialize<PingEvent>(root);
-            _logger.LogDebug("PingEvent registered with id:" + pingEvent.hook_id);
-            _logger.LogDebug("PingEvent registered:" + pingEvent.zen);
-        }
-        // should never happen or it is a attack
-        else
-        {
-            _logger.LogCritical("Unknown Event happened, please investigate");
-            json.Dispose();
-            // if its a attack, we dont want to show that we are vulnerable to it
-            return NotFound();
-        }
-        json.Dispose();
-        return Ok();
+        return Ok(_gitHubPaymentService.FillSponsorDtoWithDatabase(sponsor.Value));
     }
 
-    [HttpGet("sponsorship/info")]
-    public IActionResult Info([FromQuery(Name = "token")] string token)
+    [HttpGet("sponsor/by/token")]
+    public async Task<IActionResult> GetSponsorByToken([FromQuery] string token)
     {
-        return Ok("");
+        var sponsor = await _gitHubService.GetSponsorDataByToken(token);
+        if (!sponsor.HasValue)
+            return NotFound();
+        return Ok(_gitHubPaymentService.FillSponsorDtoWithDatabase(sponsor.Value));
     }
 
+    [HttpGet("sponsor/list")]
+    public async Task<IActionResult> GetSponsorList()
+    {
+        var sponsors = await _gitHubService.GetAllSponsors();
+        return Ok(_gitHubPaymentService.FillSponsorDtoWithDatabase(sponsors));
+    }
 
+    [HttpGet("sponsor/is/from/viewer")]
+    public async Task<IActionResult> IsSponsorFromViewer([FromQuery] string login)
+    {
+        var isSponsor = await _gitHubService.IsSponsorFromViewer(login);
+        return Ok(isSponsor);
+    }
 
+    [HttpGet("sponsor/viewer/is/from")]
+    public async Task<IActionResult> ViewerIsSponsorFrom([FromQuery] string login)
+    {
+        var isSponsor = await _gitHubService.ViewerIsSponsorFrom(login);
+        return Ok(isSponsor);
+    }
 }

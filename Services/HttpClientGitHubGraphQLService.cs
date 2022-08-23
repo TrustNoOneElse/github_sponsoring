@@ -4,13 +4,13 @@ using System.Net.Http.Headers;
 
 namespace GithubSponsorsWebhook.Services;
 
-public class GitHubGraphQLService
+public class HttpClientGitHubGraphQLService
 {
     private readonly HttpClient _httpClient;
-    private readonly ILogger<GitHubGraphQLService> _logger;
+    private readonly ILogger<HttpClientGitHubGraphQLService> _logger;
     private readonly Uri baseUrl = new Uri("https://api.github.com/graphql");
 
-    public GitHubGraphQLService(HttpClient httpClient, ILogger<GitHubGraphQLService> logger)
+    public HttpClientGitHubGraphQLService(HttpClient httpClient, ILogger<HttpClientGitHubGraphQLService> logger)
     {
         _httpClient = httpClient;
         _logger = logger;
@@ -19,12 +19,14 @@ public class GitHubGraphQLService
         // The GitHub GraphQL API requires Authorization header .
         if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_TOKEN")))
         {
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Environment.GetEnvironmentVariable("GITHUB_TOKEN"));
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", Environment.GetEnvironmentVariable("GITHUB_TOKEN"));
         }
         else
         {
             _logger.LogCritical("GITHUB_TOKEN is not set, please set it in the environment variables");
         }
+        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        _httpClient.DefaultRequestHeaders.Add("User-Agent", "GithubSponsorsWebhook");
     }
 
     public async Task<ViewerResponse?> GetUserByToken(string token)
@@ -57,13 +59,13 @@ public class GitHubGraphQLService
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadFromJsonAsync<SponsorResponse>();
-        if (content.data.user.HasValue)
+        if (content.data.user.HasValue && content.data.user.Value.viewerIsSponsoring.HasValue)
         {
-            return content.data.user.Value.viewerIsSponsoring;
+            return content.data.user.Value.viewerIsSponsoring.Value;
         }
-        else if (content.data.organization.HasValue)
+        else if (content.data.organization.HasValue && content.data.organization.Value.viewerIsSponsoring.HasValue)
         {
-            return content.data.organization.Value.viewerIsSponsoring;
+            return content.data.organization.Value.viewerIsSponsoring.Value;
         }
         return false;
     }
