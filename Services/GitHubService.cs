@@ -101,7 +101,7 @@ public class GitHubService : IGitHubService
     private SponsorDto MapToSponsorDto(SponsorshipNode node)
     {
 #pragma warning disable CS8629 // The object we get here will not be null, but the compiler does not know that
-        GitHubEntity sponsor = (GitHubEntity)(node.sponsorEntity.__typename == "User" ? node.sponsorEntity.user : node.sponsorEntity.organization);
+        SponsorEntity sponsor = node.sponsorEntity;
         ClosestTierDto? closestTierDto = null;
         if (node.tier.closestLesserValueTier.HasValue)
         {
@@ -115,7 +115,7 @@ public class GitHubService : IGitHubService
         return new SponsorDto
         {
             email = sponsor.email,
-            entityType = node.sponsorEntity.__typename == "User" ? Models.GithubType.USER : Models.GithubType.ORGANIZATION,
+            entityType = sponsor.__typename == "User" ? Models.GithubType.USER : Models.GithubType.ORGANIZATION,
             login = sponsor.login,
             name = sponsor.name,
             tier = new TierDto
