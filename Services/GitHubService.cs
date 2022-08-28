@@ -100,7 +100,6 @@ public class GitHubService : IGitHubService
 
     private SponsorDto MapToSponsorDto(SponsorshipNode node)
     {
-#pragma warning disable CS8629 // The object we get here will not be null, but the compiler does not know that
         SponsorEntity sponsor = node.sponsorEntity;
         ClosestTierDto? closestTierDto = null;
         if (node.tier.closestLesserValueTier.HasValue)
@@ -111,7 +110,6 @@ public class GitHubService : IGitHubService
                 name = node.tier.closestLesserValueTier.Value.name,
             };
         }
-#pragma warning restore CS8602
         return new SponsorDto
         {
             email = sponsor.email,

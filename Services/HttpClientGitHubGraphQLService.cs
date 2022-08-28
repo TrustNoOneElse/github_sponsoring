@@ -137,7 +137,6 @@ public class HttpClientGitHubGraphQLService
         };
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
-        _logger.LogDebug("Response from GitHub GraphQL API: {0}", await response.Content.ReadAsStringAsync());
         var responseData = await response.Content.ReadFromJsonAsync<ListSponsorDataResponse>();
         return responseData.data.viewer.sponsorshipsAsMaintainer;
     }
