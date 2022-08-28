@@ -25,11 +25,20 @@ public class GitHubWebhookController : ControllerBase
 
     [HttpPost("sponsorship")]
     [Consumes("application/json")]
-    public IActionResult Sponsorship([FromBody] JsonDocument json, [FromHeader(Name = "X-Hub-Signature-256")] string sha256Secret)
+    public async Task<IActionResult> Sponsorship([FromHeader(Name = "X-Hub-Signature-256")] string sha256Secret, [FromHeader(Name = "X-Hub-Signature")] string sha1Secret)
     {
+        JsonDocument? json = null;
+        using (var reader = new StreamReader(Request.Body))
+        {
+            var jsonPayload = await reader.ReadToEndAsync();
+            if (!GitHubVerify.VerifySignature(sha256Secret, jsonPayload, _logger))
+            {
+                return NotFound();
+            }
+            json = JsonDocument.Parse(jsonPayload);
+        }
         // Normally you would throw Unauthorized, but for the bad case we dont want to show that he used the wrong secret
-        if (!_env.IsDevelopment() && !GitHubVerify.VerifySignature(sha256Secret, json.ToJsonString(), _logger))
-            return NotFound();
+
         JsonElement root = json.RootElement;
         // Check if its a sponsorship Event
         if (root.TryGetProperty("action", out JsonElement action))
@@ -58,13 +67,5 @@ public class GitHubWebhookController : ControllerBase
         json.Dispose();
         return Ok();
     }
-
-    [HttpGet("sponsorship/info")]
-    public IActionResult Info([FromQuery(Name = "token")] string token)
-    {
-        return Ok("");
-    }
-
-
 
 }

@@ -22,7 +22,7 @@ public class GitHubPaymentService : IGitHubPaymentService
 
     public SponsorDto FillSponsorDtoWithDatabase(SponsorDto sponsorDto)
     {
-        Sponsor sponsor = null;
+        Sponsor? sponsor = null;
         try
         {
             sponsor = _db.Sponsors.Where(s => s.LoginName == sponsorDto.login && s.GithubType == sponsorDto.entityType).First();

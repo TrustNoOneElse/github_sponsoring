@@ -1,5 +1,6 @@
-using System.Security.Cryptography;
 using System.Text;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace GithubSponsorsWebhook.Utils;
 
@@ -9,6 +10,7 @@ public static class GitHubVerify
 
     public static bool VerifySignature(string sha256Header, string payload, ILogger _logger)
     {
+        _logger.LogDebug($"Verifying signature for sha header: {sha256Header}");
         if (sha256Header.StartsWith(SHA_IDENTIFIER, StringComparison.OrdinalIgnoreCase))
         {
             var signature = sha256Header.Substring(SHA_IDENTIFIER.Length);
@@ -18,32 +20,18 @@ public static class GitHubVerify
                 _logger.LogCritical("GITHUB_WEBHOOK_SECRET is not set, please set it in the environment variables");
                 return false;
             }
-            var secret = Encoding.ASCII.GetBytes(secretFromEnv);
-            var payloadBytes = Encoding.UTF8.GetBytes(payload);
+            var secret = Encoding.UTF8.GetBytes(secretFromEnv);
+            // verify github signature using the secret
 
-            using (var sha = new HMACSHA256(secret))
+            using (var sha = new System.Security.Cryptography.HMACSHA256(secret))
             {
-                var hash = sha.ComputeHash(payloadBytes);
-
-                var hashString = ToHexString(hash);
-
-                if (hashString.Equals(signature))
-                {
-                    return true;
-                }
+                var nonFormattedJsonPayload = JToken.ReadFrom(new JsonTextReader(new StringReader(payload))).ToString(Formatting.None);
+                var computedHash = sha.ComputeHash(Encoding.UTF8.GetBytes(nonFormattedJsonPayload));
+                _logger.LogDebug($"Verifying signature for payload with hash: {BitConverter.ToString(computedHash).Replace("-", "").ToLower()}");
+                _logger.LogDebug($"Verifying signature for payload with signature: {signature}");
+                return BitConverter.ToString(computedHash).Replace("-", "").ToLower() == signature;
             }
         }
         return false;
-    }
-
-    private static string ToHexString(byte[] bytes)
-    {
-        var builder = new StringBuilder(bytes.Length * 2);
-        foreach (byte b in bytes)
-        {
-            builder.AppendFormat("{0:x2}", b);
-        }
-
-        return builder.ToString();
     }
 }
