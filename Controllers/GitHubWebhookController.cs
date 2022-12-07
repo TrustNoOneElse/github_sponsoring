@@ -31,14 +31,13 @@ public class GitHubWebhookController : ControllerBase
         using (var reader = new StreamReader(Request.Body))
         {
             var jsonPayload = await reader.ReadToEndAsync();
+            // Normally you would throw Unauthorized, but for the bad case we dont want to show that he used the wrong secret
             if (_env.IsProduction() && !GitHubVerify.VerifySignature(sha256Secret, jsonPayload, _logger))
             {
                 return NotFound();
             }
             json = JsonDocument.Parse(jsonPayload);
         }
-        // Normally you would throw Unauthorized, but for the bad case we dont want to show that he used the wrong secret
-
         JsonElement root = json.RootElement;
         // Check if its a sponsorship Event
         if (root.TryGetProperty("action", out JsonElement action))
