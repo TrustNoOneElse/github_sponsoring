@@ -1,4 +1,4 @@
-using GithubSponsorsWebhook.Database;
+using github_sponsors_webhook.Database;
 using GithubSponsorsWebhook.Database.Models;
 using GithubSponsorsWebhook.Dtos;
 
@@ -7,12 +7,12 @@ namespace GithubSponsorsWebhook.Services;
 public class GitHubPaymentService : IGitHubPaymentService
 {
     private readonly ILogger<GitHubPaymentService> _logger;
-    private readonly DatabaseContext _db;
+    private readonly ILiteDbSponsorService _dbContext;
 
-    public GitHubPaymentService(ILogger<GitHubPaymentService> logger, DatabaseContext db)
+    public GitHubPaymentService(ILogger<GitHubPaymentService> logger, ILiteDbSponsorService db)
     {
         _logger = logger;
-        _db = db;
+        _dbContext = db;
     }
 
     public List<SponsorDto> FillSponsorDtoWithDatabase(List<SponsorDto> sponsorDto)
@@ -22,26 +22,18 @@ public class GitHubPaymentService : IGitHubPaymentService
 
     public SponsorDto FillSponsorDtoWithDatabase(SponsorDto sponsorDto)
     {
-        Sponsor? sponsor = null;
-        try
-        {
-            sponsor = _db.Sponsors.Where(s => s.LoginName == sponsorDto.login && s.GithubType == sponsorDto.entityType).First();
-        }
-        catch
-        {
-            _logger.LogWarning($"Sponsor {sponsorDto.login} not found in database for {sponsorDto.entityType}");
-        }
-        if (sponsor != null)
+        var sponsor = _dbContext.FindSponsor(sponsorDto.login, sponsorDto.entityType);
+        if (sponsor != null && sponsor != default)
         {
             sponsorDto.totalSpendInCent = sponsor.TotalSpendInCent;
             sponsorDto.totalSpendInDollar = sponsor.TotalSpendInDollar;
-            sponsorDto.firstSponsoredAt = sponsor.firstSponsoredAt;
+            sponsorDto.firstSponsoredAt = sponsor.FirstSponsoredAt;
             sponsorDto.payedLifetime = HasPayedLifetime(sponsor);
             sponsorDto.payedMinimum = HasPayedMinimum(sponsor);
         }
         else
         {
-            _logger.LogInformation($"Sponsor {sponsorDto.login} not found in database for {sponsorDto.entityType}");
+            _logger.LogInformation("Sponsor {login} not found in database for {entityType}", sponsorDto.login, sponsorDto.entityType);
         }
         return sponsorDto;
     }

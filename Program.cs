@@ -2,19 +2,18 @@ using GithubSponsorsWebhook.Database;
 using GithubSponsorsWebhook.Services;
 using GithubSponsorsWebhook.Jobs;
 using Microsoft.AspNetCore.Cors.Infrastructure;
-using Microsoft.EntityFrameworkCore;
 using Quartz;
 using Microsoft.AspNetCore.HttpOverrides;
+using github_sponsors_webhook.Database;
 
 var builder = WebApplication.CreateBuilder(args);
 
 #region Build Configuration
 // Add services to the container.
-// add database context to the container
-builder.Services.AddDbContext<DatabaseContext>(options =>
-{
-    options.UseMySQL(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
+// add LiteDb context to the container
+builder.Services.Configure<LiteDbOptions>(builder.Configuration.GetSection(LiteDbOptions.LiteDb));
+builder.Services.AddSingleton<ILiteDbContext, LiteDbContext>();
+builder.Services.AddTransient<ILiteDbSponsorService, LiteDbSponsorService>();
 builder.Services.AddScoped<ISponsorshipService, SponsorshipService>();
 builder.Services.AddScoped<IGitHubService, GitHubService>();
 builder.Services.AddScoped<IGitHubPaymentService, GitHubPaymentService>();
@@ -33,9 +32,15 @@ builder.Services.AddQuartz(q =>
     });
     q.UseInMemoryStore();
     q.UseTimeZoneConverter();
+    if(builder.Environment.IsProduction())
     q.ScheduleJob<SponsoringJob>((trigger) => trigger
         .WithIdentity("GithubSponsorsWebhook")
         .WithCronSchedule("0 0 0/4 * * ?")
+        .StartNow());
+    else
+        q.ScheduleJob<SponsoringJob>((trigger) => trigger
+        .WithIdentity("GithubSponsorsWebhook")
+        .WithCronSchedule("0 0/1 * * * ?")
         .StartNow());
 });
 builder.Services.AddScoped<SponsoringJob>();
@@ -80,13 +85,6 @@ app.UseCors(CorsPolicyBuilder =>
     CorsPolicyBuilder.WithHeaders("Content-Type", "X-Hub-Signature-256", "X-GitHub-Event", "X-GitHub-Delivery");
     CorsPolicyBuilder.WithMethods("POST", "OPTIONS", "GET");
 });
-
-// make sure database is existing
-using (var scope = app.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
-    context.Database.EnsureCreated();
-}
 
 app.UseHttpLogging();
 

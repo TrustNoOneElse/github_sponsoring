@@ -31,7 +31,7 @@ public class GitHubWebhookController : ControllerBase
         using (var reader = new StreamReader(Request.Body))
         {
             var jsonPayload = await reader.ReadToEndAsync();
-            if (!GitHubVerify.VerifySignature(sha256Secret, jsonPayload, _logger))
+            if (_env.IsProduction() && !GitHubVerify.VerifySignature(sha256Secret, jsonPayload, _logger))
             {
                 return NotFound();
             }
