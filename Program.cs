@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Cors.Infrastructure;
 using Quartz;
 using Microsoft.AspNetCore.HttpOverrides;
 using github_sponsors_webhook.Database;
+using github_sponsors_webhook;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -90,5 +91,12 @@ app.UseHttpLogging();
 
 app.MapControllers();
 #endregion App Configuration
+
+var migration = new MigrationMySqlToLiteDb();
+var service = app.Services.GetService(typeof(ILiteDbSponsorService));
+if (service != null && app.Configuration.GetSection("Migration").Value == "true") {
+    app.Logger.LogDebug("Migration starting");
+    migration.DoMigratation((ILiteDbSponsorService) service, app.Configuration.GetConnectionString("DefaultConnection"), app.Logger) ;
+}
 
 app.Run();

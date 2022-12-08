@@ -16,7 +16,7 @@ public class LiteDbSponsorService : ILiteDbSponsorService
         LiteDbContext = dbContext;
     }
     
-    public bool AddSponsor(Sponsor sponsor)
+    public int AddSponsor(Sponsor sponsor)
     {
         var collection = LiteDbContext.Database.GetCollection<Sponsor>(CollectionName);
         return collection.Insert(sponsor);

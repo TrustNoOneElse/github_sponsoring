@@ -8,7 +8,7 @@ public interface ILiteDbSponsorService
     public ILogger<ILiteDbSponsorService> Logger { get; }
     public ILiteDbContext LiteDbContext { get; }
 
-    public bool AddSponsor(Sponsor sponsor);
+    public int AddSponsor(Sponsor sponsor);
     public bool UpdateSponsor(ref Sponsor sponsor);
     public Sponsor FindSponsor(string loginName);
     public Sponsor FindSponsor(string loginName, GithubType type);
