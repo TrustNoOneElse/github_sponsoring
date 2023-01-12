@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Cors.Infrastructure;
 using Quartz;
 using Microsoft.AspNetCore.HttpOverrides;
 using github_sponsors_webhook.Database;
-using github_sponsors_webhook;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,11 +32,11 @@ builder.Services.AddQuartz(q =>
     });
     q.UseInMemoryStore();
     q.UseTimeZoneConverter();
-    if(builder.Environment.IsProduction())
-    q.ScheduleJob<SponsoringJob>((trigger) => trigger
-        .WithIdentity("GithubSponsorsWebhook")
-        .WithCronSchedule("0 0 0/4 * * ?")
-        .StartNow());
+    if (builder.Environment.IsProduction())
+        q.ScheduleJob<SponsoringJob>((trigger) => trigger
+            .WithIdentity("GithubSponsorsWebhook")
+            .WithCronSchedule("0 0 0/4 * * ?")
+            .StartNow());
     else
         q.ScheduleJob<SponsoringJob>((trigger) => trigger
         .WithIdentity("GithubSponsorsWebhook")
@@ -91,12 +90,5 @@ app.UseHttpLogging();
 
 app.MapControllers();
 #endregion App Configuration
-
-var migration = new MigrationMySqlToLiteDb();
-var service = app.Services.GetService(typeof(ILiteDbSponsorService));
-if (service != null && app.Configuration.GetSection("Migration").Value == "true") {
-    app.Logger.LogDebug("Migration starting");
-    migration.DoMigratation((ILiteDbSponsorService) service, app.Configuration.GetConnectionString("DefaultConnection"), app.Logger) ;
-}
 
 app.Run();

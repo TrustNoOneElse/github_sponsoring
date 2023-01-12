@@ -26,11 +26,12 @@ public class SponsorshipService : ISponsorshipService
         var hasChanges = false;
         foreach (var sponsor in activeSponsors)
         {
+            _logger.LogDebug("Checking sponsor {0}", sponsor.LoginName);
             if (sponsor != null && sponsor != default && CanRecalculate(sponsor.CurrentTier))
             {
+                _logger.LogDebug("Recalculating sponsor {0}", sponsor.LoginName);
                 var tier = sponsor.CurrentTier;
                 sponsor.TotalSpendInCent += tier.MonthlyPriceInCent;
-                sponsor.TotalSpendInDollar += tier.MonthlyPriceInDollar;
                 tier.CurrentCalculatedIntervalInMonth += 1; // indicate that this month has been calculated
                 hasChanges = true;
             }
@@ -90,13 +91,14 @@ public class SponsorshipService : ISponsorshipService
         var sponsor = _sponsorService.FindSponsor(sponsorEvent.DatabaseId, sponsorEvent.GithubType);
         if (sponsor != null && sponsor != default)
         {
+            _logger.LogDebug("Updating sponsor {0}", sponsor.LoginName);
             // Login Name can change
             if (sponsor.LoginName != sponsorEvent.LoginName)
             {
                 sponsor.LoginName = sponsorEvent.LoginName;
             }
             var tier = sponsor.CurrentTier;
-            
+
             if (tier != null && tier != default)
             {
                 sponsor.Tiers ??= new List<Tier>();
@@ -104,10 +106,11 @@ public class SponsorshipService : ISponsorshipService
                 var newTier = new Tier();
                 newTier.MonthlyPriceInCent = sponsorEvent.Tier.monthly_price_in_cents;
                 newTier.Name = sponsorEvent.Tier.name;
-                newTier.MonthlyPriceInDollar = sponsorEvent.Tier.monthly_price_in_dollars;
                 newTier.LatestChangeAt = sponsorEvent.Tier.created_at;
-                newTier.CurrentCalculatedIntervalInMonth = -1;
+                newTier.CurrentCalculatedIntervalInMonth = 0;
                 sponsor.CurrentTier = newTier;
+                sponsor.TotalSpendInCent += sponsorEvent.Tier.monthly_price_in_cents;
+                _logger.LogDebug("Updated tier for sponsor {0}", sponsor.LoginName);
             }
             // API doesnt clearly say it, but they could change from one time payment to an actual tier
             else
@@ -116,11 +119,12 @@ public class SponsorshipService : ISponsorshipService
                 {
                     MonthlyPriceInCent = sponsorEvent.Tier.monthly_price_in_cents,
                     Name = sponsorEvent.Tier.name,
-                    MonthlyPriceInDollar = sponsorEvent.Tier.monthly_price_in_dollars,
                     LatestChangeAt = sponsorEvent.Tier.created_at,
-                    CurrentCalculatedIntervalInMonth = -1,
+                    CurrentCalculatedIntervalInMonth = 0,
                 };
                 sponsor.CurrentTier = tier;
+                sponsor.TotalSpendInCent += sponsorEvent.Tier.monthly_price_in_cents;
+                _logger.LogDebug("created tier for sponsor {0}", sponsor.LoginName);
             }
             _sponsorService.UpdateSponsor(ref sponsor);
         }
@@ -141,10 +145,8 @@ public class SponsorshipService : ISponsorshipService
                 LoginName = sponsorEvent.LoginName,
                 GithubType = sponsorEvent.GithubType,
                 TotalSpendInCent = 0,
-                TotalSpendInDollar = 0,
                 FirstSponsoredAt = DateTime.Now
             };
-            _sponsorService.AddSponsor(sponsor);
         }
         else
         {
@@ -154,7 +156,6 @@ public class SponsorshipService : ISponsorshipService
         if (sponsorEvent.Tier.is_one_time)
         {
             sponsor.TotalSpendInCent += sponsorEvent.Tier.monthly_price_in_cents;
-            sponsor.TotalSpendInDollar += sponsorEvent.Tier.monthly_price_in_dollars;
             var oneTimePayment = new OneTimePayment
             {
                 TotalInCent = sponsorEvent.Tier.monthly_price_in_cents,
@@ -171,18 +172,42 @@ public class SponsorshipService : ISponsorshipService
                 sponsor.CurrentTier.IsCancelled = true;
                 sponsor.Tiers ??= new List<Tier>();
                 sponsor.Tiers.Add(sponsor.CurrentTier);
-                _sponsorService.UpdateSponsor(ref sponsor);
             }
             var tier = new Tier
             {
                 Name = sponsorEvent.Tier.name,
                 MonthlyPriceInCent = sponsorEvent.Tier.monthly_price_in_cents,
-                MonthlyPriceInDollar = sponsorEvent.Tier.monthly_price_in_dollars,
                 LatestChangeAt = sponsorEvent.CreatedAt,
-                CurrentCalculatedIntervalInMonth = -1,
+                CurrentCalculatedIntervalInMonth = 0,
             };
+            sponsor.TotalSpendInCent += sponsorEvent.Tier.monthly_price_in_cents;
             sponsor.CurrentTier = tier;
         }
         _sponsorService.UpdateSponsor(ref sponsor);
+    }
+
+    public void ProcessSpnsorSwitchEvent(SponsorSwitchEvent sponsorSwitchEvent)
+    {
+        var sponsor = _sponsorService.FindSponsor(sponsorSwitchEvent.DatabaseId, sponsorSwitchEvent.GithubType);
+        if(sponsor == null)
+        {
+            sponsor = new Sponsor
+            {
+                DatabaseId = sponsorSwitchEvent.DatabaseId,
+                LoginName = sponsorSwitchEvent.LoginName,
+                GithubType = sponsorSwitchEvent.GithubType,
+                TotalSpendInCent = sponsorSwitchEvent.TotalSpendInCentInOtherInstance + int.Parse(Environment.GetEnvironmentVariable("INCENTIVE_FOR_SWITCH")),
+                FirstSponsoredAt = DateTime.Now,
+                IsChangedFromPatreon = true,
+            };
+            _sponsorService.AddSponsor(sponsor);
+        } else if(sponsor != null && !sponsor.IsChangedFromPatreon)
+        {
+            sponsor.TotalSpendInCent += sponsorSwitchEvent.TotalSpendInCentInOtherInstance + int.Parse(Environment.GetEnvironmentVariable("INCENTIVE_FOR_SWITCH"));
+            sponsor.IsChangedFromPatreon = true;
+            _sponsorService.UpdateSponsor(ref sponsor);
+        }
+        // else case is it is a sponsor, but he already did a migration from patreon to github, so we dont need to do anything
+        return;
     }
 }

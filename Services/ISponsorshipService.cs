@@ -14,4 +14,6 @@ public interface ISponsorshipService
     * This method is executed every few hours and checks if we need to calculate the new tiers of a sponsor.
     */
     public void ExecuteCronJob();
+
+    public void ProcessSpnsorSwitchEvent(SponsorSwitchEvent sponsorSwitchEvent);
 }

@@ -120,7 +120,6 @@ public class GitHubService : IGitHubService
             {
                 id = node.tier.id,
                 monthlyPriceInCents = node.tier.monthlyPriceInCents,
-                monthlyPriceInDollar = node.tier.monthlyPriceInDollars,
                 isCustomAmount = node.tier.isCustomAmount,
                 isOneTime = node.tier.isOneTime,
                 name = node.tier.name,
@@ -154,7 +153,6 @@ public class GitHubService : IGitHubService
             {
                 id = tierResponse.id,
                 monthlyPriceInCents = tierResponse.monthlyPriceInCents,
-                monthlyPriceInDollar = tierResponse.monthlyPriceInDollars,
                 isCustomAmount = tierResponse.isCustomAmount,
                 isOneTime = tierResponse.isOneTime,
                 name = tierResponse.name,
@@ -170,6 +168,7 @@ public class GitHubService : IGitHubService
             login = sponsor.Value.login,
             name = sponsor.Value.name,
             tier = tier,
+            databaseId = sponsor.Value.databaseId
         };
     }
 

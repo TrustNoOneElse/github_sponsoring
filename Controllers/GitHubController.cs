@@ -1,3 +1,4 @@
+using GithubSponsorsWebhook.Dtos;
 using GithubSponsorsWebhook.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,11 +11,13 @@ public class GitHubController : ControllerBase
     private readonly IGitHubService _gitHubService;
     private readonly ILogger<GitHubController> _logger;
     private readonly IGitHubPaymentService _gitHubPaymentService;
-    public GitHubController(IGitHubService gitHubService, ILogger<GitHubController> logger, IGitHubPaymentService gitHubPaymentService)
+    private readonly ISponsorshipService _sponsorshipService;
+    public GitHubController(IGitHubService gitHubService, ILogger<GitHubController> logger, IGitHubPaymentService gitHubPaymentService, ISponsorshipService sponsorshipService)
     {
         _gitHubService = gitHubService;
         _logger = logger;
         _gitHubPaymentService = gitHubPaymentService;
+        _sponsorshipService = sponsorshipService;
     }
 
     [HttpGet("sponsor/by/login")]
@@ -54,5 +57,21 @@ public class GitHubController : ControllerBase
     {
         var isSponsor = await _gitHubService.ViewerIsSponsorFrom(login);
         return Ok(isSponsor);
+    }
+
+    [HttpPost("sponsor/switch")]
+    [Consumes("application/json")]
+    public async Task<IActionResult> SponsorFromPatreonSwitch([FromBody] SponsorSwitchDto sponsorSwitchDto)
+    {
+        var sponsor = await _gitHubService.GetSponsorDataByToken(sponsorSwitchDto.token);
+        if (!sponsor.HasValue) return NoContent();
+        _sponsorshipService.ProcessSpnsorSwitchEvent(new Models.SponsorSwitchEvent
+        {
+            GithubType = sponsor.Value.entityType,
+            LoginName = sponsor.Value.login,
+            TotalSpendInCentInOtherInstance = sponsorSwitchDto.lifetimeAmountinCent,
+            DatabaseId = sponsor.Value.databaseId,
+        });
+        return Ok();
     }
 }

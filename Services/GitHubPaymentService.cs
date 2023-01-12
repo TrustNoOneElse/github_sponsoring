@@ -26,7 +26,6 @@ public class GitHubPaymentService : IGitHubPaymentService
         if (sponsor != null && sponsor != default)
         {
             sponsorDto.totalSpendInCent = sponsor.TotalSpendInCent;
-            sponsorDto.totalSpendInDollar = sponsor.TotalSpendInDollar;
             sponsorDto.firstSponsoredAt = sponsor.FirstSponsoredAt;
             sponsorDto.payedLifetime = HasPayedLifetime(sponsor);
             sponsorDto.payedMinimum = HasPayedMinimum(sponsor);

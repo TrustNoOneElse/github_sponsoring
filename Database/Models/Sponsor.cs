@@ -16,9 +16,9 @@ public class Sponsor
 
     public int TotalSpendInCent { get; set; }
 
-    public int TotalSpendInDollar { get; set; }
-
     public Tier CurrentTier { get; set; }
+
+    public bool IsChangedFromPatreon { get; set; }
 
     public List<Tier> Tiers { get; set; }
 

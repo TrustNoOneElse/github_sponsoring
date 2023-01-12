@@ -25,17 +25,12 @@ public class GitHubWebhookController : ControllerBase
 
     [HttpPost("sponsorship")]
     [Consumes("application/json")]
-    public async Task<IActionResult> Sponsorship([FromHeader(Name = "X-Hub-Signature-256")] string sha256Secret, [FromHeader(Name = "X-Hub-Signature")] string sha1Secret)
+    public async Task<IActionResult> Sponsorship()
     {
         JsonDocument? json = null;
         using (var reader = new StreamReader(Request.Body))
         {
             var jsonPayload = await reader.ReadToEndAsync();
-            // Normally you would throw Unauthorized, but for the bad case we dont want to show that he used the wrong secret
-            if (_env.IsProduction() && !GitHubVerify.VerifySignature(sha256Secret, jsonPayload, _logger))
-            {
-                return NotFound();
-            }
             json = JsonDocument.Parse(jsonPayload);
         }
         JsonElement root = json.RootElement;
@@ -61,7 +56,7 @@ public class GitHubWebhookController : ControllerBase
             _logger.LogCritical("Unknown Event happened, please investigate");
             json.Dispose();
             // if its a attack, we dont want to show that we are vulnerable to it
-            return NotFound();
+            return Unauthorized();
         }
         json.Dispose();
         return Ok();

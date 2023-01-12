@@ -15,7 +15,6 @@ public class Tier
 
     public int MonthlyPriceInCent { get; set; }
 
-    public int MonthlyPriceInDollar { get; set; }
     /**
     * The date when the tier was created or updated. It does not represent our database creation.
     */

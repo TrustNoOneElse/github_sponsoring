@@ -1,6 +1,7 @@
 using GithubSponsorsWebhook.Models;
 
 namespace GithubSponsorsWebhook.Dtos;
+#pragma warning disable IDE1006 // its a dto
 
 public struct SponsorDto
 {
@@ -13,6 +14,7 @@ public struct SponsorDto
     public bool payedMinimum { get; set; }
     public DateTime firstSponsoredAt { get; set; }
     public int totalSpendInCent { get; set; }
-    public int totalSpendInDollar { get; set; }
+    public int databaseId { get; set; }
 
 }
+#pragma warning restore IDE1006 //  its a dto
