@@ -21,7 +21,7 @@ public class GitHubService : IGitHubService
             var responses = await _httpClient.GetAllSponsors();
             foreach (var response in responses)
             {
-                if (response.edges.Count() == 0)
+                if (response.edges.Length == 0)
                 {
                     continue;
                 }
@@ -45,7 +45,7 @@ public class GitHubService : IGitHubService
         }
         catch (HttpRequestException e)
         {
-            _logger.LogError(e, $"Error while getting sponsor data by login for {login}");
+            _logger.LogError(e, "Error while getting sponsor data by login for {login}", login);
             return null;
         }
     }
@@ -62,7 +62,7 @@ public class GitHubService : IGitHubService
         }
         catch (HttpRequestException e)
         {
-            _logger.LogError(e, $"Error while getting sponsor data by token for {token}");
+            _logger.LogError(e, "Error while getting sponsor data by token for {token}", token);
             return null;
         }
         return null;
@@ -77,7 +77,7 @@ public class GitHubService : IGitHubService
         }
         catch (HttpRequestException e)
         {
-            _logger.LogError(e, $"Error while getting sponsor data by login for {login}");
+            _logger.LogError(e, "Error while getting sponsor data by login for {login}", login);
             return false;
         }
     }
@@ -91,14 +91,14 @@ public class GitHubService : IGitHubService
         }
         catch (HttpRequestException e)
         {
-            _logger.LogError(e, $"Error while getting sponsor data by login for {login}");
+            _logger.LogError(e, "Error while getting sponsor data by login for {login}", login);
             return false;
         }
     }
 
     #region Mapping
 
-    private SponsorDto MapToSponsorDto(SponsorshipNode node)
+    private static SponsorDto MapToSponsorDto(SponsorshipNode node)
     {
         SponsorEntity sponsor = node.sponsorEntity;
         ClosestTierDto? closestTierDto = null;
@@ -120,7 +120,6 @@ public class GitHubService : IGitHubService
             {
                 id = node.tier.id,
                 monthlyPriceInCents = node.tier.monthlyPriceInCents,
-                monthlyPriceInDollar = node.tier.monthlyPriceInDollars,
                 isCustomAmount = node.tier.isCustomAmount,
                 isOneTime = node.tier.isOneTime,
                 name = node.tier.name,
@@ -130,14 +129,14 @@ public class GitHubService : IGitHubService
         };
     }
 
-    private SponsorDto? SponsorResponseToDto(SponsorResponse response)
+    private static SponsorDto? SponsorResponseToDto(SponsorResponse response)
     {
-        GitHubEntity? sponsor = response.data.organization.HasValue ? response.data.organization.Value : (response.data.user.HasValue ? response.data.user.Value : null);
+        GitHubEntity? sponsor = response.data.organization ?? (response.data.user ?? null);
         if (sponsor == null)
         {
             return null;
         }
-        TierDto tier = new TierDto();
+        TierDto tier = new();
         if (sponsor.Value.sponsorshipForViewerAsSponsorable.HasValue)
         {
             var tierResponse = sponsor.Value.sponsorshipForViewerAsSponsorable.Value.tier;
@@ -154,7 +153,6 @@ public class GitHubService : IGitHubService
             {
                 id = tierResponse.id,
                 monthlyPriceInCents = tierResponse.monthlyPriceInCents,
-                monthlyPriceInDollar = tierResponse.monthlyPriceInDollars,
                 isCustomAmount = tierResponse.isCustomAmount,
                 isOneTime = tierResponse.isOneTime,
                 name = tierResponse.name,
@@ -170,6 +168,7 @@ public class GitHubService : IGitHubService
             login = sponsor.Value.login,
             name = sponsor.Value.name,
             tier = tier,
+            databaseId = sponsor.Value.databaseId
         };
     }
 

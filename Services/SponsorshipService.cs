@@ -1,9 +1,7 @@
 
-using GithubSponsorsWebhook.Database;
+using github_sponsors_webhook.Database;
 using GithubSponsorsWebhook.Database.Models;
 using GithubSponsorsWebhook.Models;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NodaTime;
 using NodaTime.Extensions;
 
@@ -11,11 +9,11 @@ namespace GithubSponsorsWebhook.Services;
 
 public class SponsorshipService : ISponsorshipService
 {
-    private readonly DatabaseContext _databaseContext;
+    private readonly ILiteDbSponsorService _sponsorService;
     private readonly ILogger<SponsorshipService> _logger;
-    public SponsorshipService(DatabaseContext context, ILogger<SponsorshipService> logger)
+    public SponsorshipService(ILiteDbSponsorService context, ILogger<SponsorshipService> logger)
     {
-        _databaseContext = context;
+        _sponsorService = context;
         _logger = logger;
     }
     /**
@@ -23,32 +21,30 @@ public class SponsorshipService : ISponsorshipService
     */
     public void ExecuteCronJob()
     {
-        var tiers = _databaseContext.Tiers.Where(t => !t.IsCancelled).Include(t => t.Sponsor).ToList();
-        bool hasChanges = false;
-        foreach (var tier in tiers)
+        var sponsorsCollection = _sponsorService.FindAll();
+        var activeSponsors = sponsorsCollection.FindAll(sponsor => sponsor.IsSponsor);
+        var hasChanges = false;
+        foreach (var sponsor in activeSponsors)
         {
-            if (CanRecalculate(tier))
+            _logger.LogDebug("Checking sponsor {0}", sponsor.LoginName);
+            if (sponsor != null && sponsor != default && CanRecalculate(sponsor.CurrentTier))
             {
-                var sponsor = tier.Sponsor;
+                _logger.LogDebug("Recalculating sponsor {0}", sponsor.LoginName);
+                var tier = sponsor.CurrentTier;
                 sponsor.TotalSpendInCent += tier.MonthlyPriceInCent;
-                sponsor.TotalSpendInDollar += tier.MonthlyPriceInDollar;
-                _databaseContext.Sponsors.Update(sponsor);
                 tier.CurrentCalculatedIntervalInMonth += 1; // indicate that this month has been calculated
-                _databaseContext.Tiers.Update(tier);
                 hasChanges = true;
             }
         }
         if (hasChanges)
-        {
-            _databaseContext.SaveChanges();
-        }
+            _sponsorService.UpdateSponsors(activeSponsors);
     }
 
     /**
     * Checks if the last calculated interval is older than the tier's interval.
     * If so, the tier will be recalculated.
     */
-    private bool CanRecalculate(Tier t)
+    private static bool CanRecalculate(Tier t)
     {
         Period period = Period.Between(t.LatestChangeAt.ToLocalDateTime(), DateTime.Now.ToLocalDateTime(), PeriodUnits.Months);
         return t.CurrentCalculatedIntervalInMonth < period.Months;
@@ -74,15 +70,14 @@ public class SponsorshipService : ISponsorshipService
 
     private void DeleteSponsor(SponsorEvent sponsorEvent)
     {
-        var sponsor = _databaseContext.Sponsors.Where(s => s.DatabaseId == sponsorEvent.DatabaseId && s.GithubType == sponsorEvent.GithubType).Include(s => s.CurrentTier).First();
-        if (sponsor != null)
+        var sponsor = _sponsorService.FindSponsor(sponsorEvent.DatabaseId, sponsorEvent.GithubType);
+        if (sponsor != null && sponsor != default)
         {
             var tier = sponsor.CurrentTier;
-            if (tier != null)
+            if (tier != null && tier != default)
             {
                 tier.IsCancelled = true;
-                _databaseContext.Tiers.Update(tier);
-                _databaseContext.SaveChanges();
+                _sponsorService.UpdateSponsor(ref sponsor);
             }
         }
     }
@@ -93,40 +88,45 @@ public class SponsorshipService : ISponsorshipService
     */
     private void UpdateSponsor(SponsorEvent sponsorEvent)
     {
-        var sponsor = _databaseContext.Sponsors.Where(s => s.DatabaseId == sponsorEvent.DatabaseId && s.GithubType == sponsorEvent.GithubType).Include(s => s.CurrentTier).First();
-        if (sponsor != null)
+        var sponsor = _sponsorService.FindSponsor(sponsorEvent.DatabaseId, sponsorEvent.GithubType);
+        if (sponsor != null && sponsor != default)
         {
+            _logger.LogDebug("Updating sponsor {0}", sponsor.LoginName);
             // Login Name can change
             if (sponsor.LoginName != sponsorEvent.LoginName)
             {
                 sponsor.LoginName = sponsorEvent.LoginName;
-                _databaseContext.Sponsors.Update(sponsor);
             }
             var tier = sponsor.CurrentTier;
-            if (tier != null)
+
+            if (tier != null && tier != default)
             {
-                tier.MonthlyPriceInCent = sponsorEvent.Tier.monthly_price_in_cents;
-                tier.Name = sponsorEvent.Tier.name;
-                tier.MonthlyPriceInDollar = sponsorEvent.Tier.monthly_price_in_dollars;
-                tier.LatestChangeAt = sponsorEvent.Tier.created_at;
-                tier.CurrentCalculatedIntervalInMonth = -1;
-                _databaseContext.Tiers.Update(tier);
+                sponsor.Tiers ??= new List<Tier>();
+                sponsor.Tiers.Add(tier);
+                var newTier = new Tier();
+                newTier.MonthlyPriceInCent = sponsorEvent.Tier.monthly_price_in_cents;
+                newTier.Name = sponsorEvent.Tier.name;
+                newTier.LatestChangeAt = sponsorEvent.Tier.created_at;
+                newTier.CurrentCalculatedIntervalInMonth = 0;
+                sponsor.CurrentTier = newTier;
+                sponsor.TotalSpendInCent += sponsorEvent.Tier.monthly_price_in_cents;
+                _logger.LogDebug("Updated tier for sponsor {0}", sponsor.LoginName);
             }
             // API doesnt clearly say it, but they could change from one time payment to an actual tier
             else
             {
                 tier = new Tier
                 {
-                    SponsorId = sponsor.Id,
                     MonthlyPriceInCent = sponsorEvent.Tier.monthly_price_in_cents,
                     Name = sponsorEvent.Tier.name,
-                    MonthlyPriceInDollar = sponsorEvent.Tier.monthly_price_in_dollars,
                     LatestChangeAt = sponsorEvent.Tier.created_at,
-                    CurrentCalculatedIntervalInMonth = -1,
+                    CurrentCalculatedIntervalInMonth = 0,
                 };
-                _databaseContext.Tiers.Add(tier);
+                sponsor.CurrentTier = tier;
+                sponsor.TotalSpendInCent += sponsorEvent.Tier.monthly_price_in_cents;
+                _logger.LogDebug("created tier for sponsor {0}", sponsor.LoginName);
             }
-            _databaseContext.SaveChanges();
+            _sponsorService.UpdateSponsor(ref sponsor);
         }
     }
 
@@ -136,18 +136,8 @@ public class SponsorshipService : ISponsorshipService
 */
     private void CreateSponsor(SponsorEvent sponsorEvent)
     {
-        Sponsor? sponsor;
-        try
-        {
-            sponsor = _databaseContext.Sponsors.Where(s => s.DatabaseId == sponsorEvent.DatabaseId && (int)s.GithubType == (int)sponsorEvent.GithubType).First();
-        }
-        catch (Exception e)
-        {
-            _logger.LogDebug(e, "Sponsor does not exist yet");
-            sponsor = null;
-        }
-        EntityEntry<Sponsor> trackedSponsorEntity;
-        if (sponsor == null)
+        var sponsor = _sponsorService.FindSponsor(sponsorEvent.DatabaseId, sponsorEvent.GithubType);
+        if (sponsor == null || sponsor == default)
         {
             sponsor = new Sponsor
             {
@@ -155,50 +145,69 @@ public class SponsorshipService : ISponsorshipService
                 LoginName = sponsorEvent.LoginName,
                 GithubType = sponsorEvent.GithubType,
                 TotalSpendInCent = 0,
-                TotalSpendInDollar = 0,
-                firstSponsoredAt = DateTime.Now
+                FirstSponsoredAt = DateTime.Now
             };
-            trackedSponsorEntity = _databaseContext.Sponsors.Add(sponsor);
         }
         else
         {
             sponsor.LoginName = sponsorEvent.LoginName;
-            trackedSponsorEntity = _databaseContext.Sponsors.Update(sponsor);
         }
-        // if its a one time payment, we calculate the total spend here
+        // if its a one time payment, we calculate the total spend here and we create a OneTimePayment object for it
         if (sponsorEvent.Tier.is_one_time)
         {
             sponsor.TotalSpendInCent += sponsorEvent.Tier.monthly_price_in_cents;
-            sponsor.TotalSpendInDollar += sponsorEvent.Tier.monthly_price_in_dollars;
-        }
-        _databaseContext.SaveChanges();
-        sponsor = trackedSponsorEntity.Entity;
-        // if its a one time payment, no reason to create a tier for it
-        if (sponsorEvent.Tier.is_one_time)
-        {
             var oneTimePayment = new OneTimePayment
             {
-                SponsorId = trackedSponsorEntity.Entity.Id,
                 TotalInCent = sponsorEvent.Tier.monthly_price_in_cents,
                 TotalInDollar = sponsorEvent.Tier.monthly_price_in_dollars,
                 CreatedAt = sponsorEvent.Tier.created_at
             };
-            _databaseContext.OneTimePayments.Add(oneTimePayment);
+            sponsor.Payments ??= new List<OneTimePayment>();
+            sponsor.Payments.Add(oneTimePayment);
         }
         else
         {
+            if (sponsor.CurrentTier != null && sponsor.CurrentTier != default)
+            {
+                sponsor.CurrentTier.IsCancelled = true;
+                sponsor.Tiers ??= new List<Tier>();
+                sponsor.Tiers.Add(sponsor.CurrentTier);
+            }
             var tier = new Tier
             {
                 Name = sponsorEvent.Tier.name,
                 MonthlyPriceInCent = sponsorEvent.Tier.monthly_price_in_cents,
-                MonthlyPriceInDollar = sponsorEvent.Tier.monthly_price_in_dollars,
                 LatestChangeAt = sponsorEvent.CreatedAt,
-                SponsorId = sponsor.Id,
-                CurrentCalculatedIntervalInMonth = -1,
+                CurrentCalculatedIntervalInMonth = 0,
             };
-            _databaseContext.Tiers.Add(tier);
+            sponsor.TotalSpendInCent += sponsorEvent.Tier.monthly_price_in_cents;
+            sponsor.CurrentTier = tier;
         }
-        _databaseContext.SaveChanges();
+        _sponsorService.UpdateSponsor(ref sponsor);
+    }
 
+    public void ProcessSpnsorSwitchEvent(SponsorSwitchEvent sponsorSwitchEvent)
+    {
+        var sponsor = _sponsorService.FindSponsor(sponsorSwitchEvent.DatabaseId, sponsorSwitchEvent.GithubType);
+        if(sponsor == null)
+        {
+            sponsor = new Sponsor
+            {
+                DatabaseId = sponsorSwitchEvent.DatabaseId,
+                LoginName = sponsorSwitchEvent.LoginName,
+                GithubType = sponsorSwitchEvent.GithubType,
+                TotalSpendInCent = sponsorSwitchEvent.TotalSpendInCentInOtherInstance + int.Parse(Environment.GetEnvironmentVariable("INCENTIVE_FOR_SWITCH")),
+                FirstSponsoredAt = DateTime.Now,
+                IsChangedFromPatreon = true,
+            };
+            _sponsorService.AddSponsor(sponsor);
+        } else if(sponsor != null && !sponsor.IsChangedFromPatreon)
+        {
+            sponsor.TotalSpendInCent += sponsorSwitchEvent.TotalSpendInCentInOtherInstance + int.Parse(Environment.GetEnvironmentVariable("INCENTIVE_FOR_SWITCH"));
+            sponsor.IsChangedFromPatreon = true;
+            _sponsorService.UpdateSponsor(ref sponsor);
+        }
+        // else case is it is a sponsor, but he already did a migration from patreon to github, so we dont need to do anything
+        return;
     }
 }

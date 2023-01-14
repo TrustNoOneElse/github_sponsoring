@@ -1,22 +1,14 @@
 namespace GithubSponsorsWebhook.Database.Models;
 
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using GithubSponsorsWebhook.Models;
-using Microsoft.EntityFrameworkCore;
+using LiteDB;
 
-[Table("Sponsors")]
-[Index("DatabaseId")]
 public class Sponsor
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
+    public string LoginName { get; set; }
 
-    [StringLength(254)]
-    public string? LoginName { get; set; }
-
-    public DateTime firstSponsoredAt { get; set; }
+    public DateTime FirstSponsoredAt { get; set; }
 
     public int DatabaseId { get; set; }
 
@@ -24,12 +16,15 @@ public class Sponsor
 
     public int TotalSpendInCent { get; set; }
 
-    public int TotalSpendInDollar { get; set; }
+    public Tier CurrentTier { get; set; }
 
-    public virtual Tier? CurrentTier { get; set; }
+    public bool IsChangedFromPatreon { get; set; }
 
-    public virtual List<OneTimePayment>? Payments { get; set; }
+    public List<Tier> Tiers { get; set; }
 
+    public List<OneTimePayment> Payments { get; set; }
+    
+    [BsonIgnore]
     public bool IsSponsor => CurrentTier != null && !CurrentTier.IsCancelled;
 
 }
