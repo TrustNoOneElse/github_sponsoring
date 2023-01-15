@@ -63,14 +63,16 @@ public class GitHubController : ControllerBase
     [Consumes("application/json")]
     public async Task<IActionResult> SponsorFromPatreonSwitch([FromBody] SponsorSwitchDto sponsorSwitchDto)
     {
-        var sponsor = await _gitHubService.GetSponsorDataByToken(sponsorSwitchDto.token);
-        if (!sponsor.HasValue) return NoContent();
+        var sponsorNullable = await _gitHubService.GetSponsorDataByToken(sponsorSwitchDto.token);
+        if (!sponsorNullable.HasValue) return NoContent();
+        var sponsor = sponsorNullable.Value;
         _sponsorshipService.ProcessSpnsorSwitchEvent(new Models.SponsorSwitchEvent
         {
-            GithubType = sponsor.Value.entityType,
-            LoginName = sponsor.Value.login,
+            GithubType = sponsor.entityType,
+            PatreonId = sponsorSwitchDto.patreonId,
+            LoginName = sponsor.login,
             TotalSpendInCentInOtherInstance = sponsorSwitchDto.lifetimeAmountinCent,
-            DatabaseId = sponsor.Value.databaseId,
+            DatabaseId = sponsor.databaseId,
         });
         return Ok();
     }

@@ -15,17 +15,11 @@ public class LiteDbSponsorService : ILiteDbSponsorService
         Logger = logger;
         LiteDbContext = dbContext;
     }
-    
-    public int AddSponsor(Sponsor sponsor)
-    {
-        var collection = LiteDbContext.Database.GetCollection<Sponsor>(CollectionName);
-        return collection.Insert(sponsor);
-    }
 
     public bool UpdateSponsor(ref Sponsor sponsor)
     {
         var collection = LiteDbContext.Database.GetCollection<Sponsor>(CollectionName);
-       return collection.Update(sponsor);
+       return collection.Upsert(sponsor);
     }
 
     public Sponsor FindSponsor(string loginName)
@@ -73,7 +67,13 @@ public class LiteDbSponsorService : ILiteDbSponsorService
     public int UpdateSponsors(List<Sponsor> sponsors)
     {
         var collection = LiteDbContext.Database.GetCollection<Sponsor>(CollectionName);
-        return collection.Update(sponsors);
+        return collection.Upsert(sponsors);
+    }
+
+    public Sponsor FindSponsorByPatreonId(Guid guid)
+    {
+        var collection = LiteDbContext.Database.GetCollection<Sponsor>(CollectionName);
+        return collection.FindOne(x => x.PatreonMigration != null && x.PatreonMigration.PatreonId == guid);
     }
 }
 
