@@ -103,11 +103,13 @@ public class SponsorshipService : ISponsorshipService
             {
                 sponsor.Tiers ??= new List<Tier>();
                 sponsor.Tiers.Add(tier);
-                var newTier = new Tier();
-                newTier.MonthlyPriceInCent = sponsorEvent.Tier.monthly_price_in_cents;
-                newTier.Name = sponsorEvent.Tier.name;
-                newTier.LatestChangeAt = sponsorEvent.Tier.created_at;
-                newTier.CurrentCalculatedIntervalInMonth = 0;
+                var newTier = new Tier
+                {
+                    MonthlyPriceInCent = sponsorEvent.Tier.monthly_price_in_cents,
+                    Name = sponsorEvent.Tier.name,
+                    LatestChangeAt = sponsorEvent.Tier.created_at,
+                    CurrentCalculatedIntervalInMonth = 0
+                };
                 sponsor.CurrentTier = newTier;
                 sponsor.TotalSpendInCent += sponsorEvent.Tier.monthly_price_in_cents;
                 _logger.LogDebug("Updated tier for sponsor {0}", sponsor.LoginName);
@@ -133,7 +135,7 @@ public class SponsorshipService : ISponsorshipService
     /**
     * Process a new sponsor event and create the Sponsor Entity as well as the Tier Entity
     * @param sponsorEvent the event to process
-*/
+    */
     private void CreateSponsor(SponsorEvent sponsorEvent)
     {
         var sponsor = _sponsorService.FindSponsor(sponsorEvent.DatabaseId, sponsorEvent.GithubType);
@@ -186,28 +188,62 @@ public class SponsorshipService : ISponsorshipService
         _sponsorService.UpdateSponsor(ref sponsor);
     }
 
+    /**
+     * Handles a SponsorSwitchEvent which is responsible for Patreon migrations 
+     */
     public void ProcessSpnsorSwitchEvent(SponsorSwitchEvent sponsorSwitchEvent)
     {
         var sponsor = _sponsorService.FindSponsor(sponsorSwitchEvent.DatabaseId, sponsorSwitchEvent.GithubType);
-        if(sponsor == null)
+        var patreonGuidSponsor = _sponsorService.FindSponsorByPatreonId(sponsorSwitchEvent.PatreonId);
+        // check if user try to dupe accounts
+        if (IsDuping(sponsor, patreonGuidSponsor))
         {
+            _logger.LogInformation("User with patreonId " + sponsorSwitchEvent.PatreonId + " tried to create another github account.");
+            return;
+        }
+        var invenctive = Configuration.GetConfiguration().MigrationIncentiveInCent;
+        // User did not sponsor us on GitHub and its is first migration
+        if (sponsor == null)
+        {
+            var totalSpendInCent = sponsorSwitchEvent.TotalSpendInCentInOtherInstance + invenctive;
             sponsor = new Sponsor
             {
                 DatabaseId = sponsorSwitchEvent.DatabaseId,
                 LoginName = sponsorSwitchEvent.LoginName,
                 GithubType = sponsorSwitchEvent.GithubType,
-                TotalSpendInCent = sponsorSwitchEvent.TotalSpendInCentInOtherInstance + int.Parse(Environment.GetEnvironmentVariable("INCENTIVE_FOR_SWITCH")),
+                TotalSpendInCent = totalSpendInCent,
                 FirstSponsoredAt = DateTime.Now,
-                IsChangedFromPatreon = true,
+                PatreonMigration = new PatreonMigration
+                {
+                    PatreonId = sponsorSwitchEvent.PatreonId,
+                    LifetimeAmountinCent = totalSpendInCent
+                }
             };
-            _sponsorService.AddSponsor(sponsor);
-        } else if(sponsor != null && !sponsor.IsChangedFromPatreon)
-        {
-            sponsor.TotalSpendInCent += sponsorSwitchEvent.TotalSpendInCentInOtherInstance + int.Parse(Environment.GetEnvironmentVariable("INCENTIVE_FOR_SWITCH"));
-            sponsor.IsChangedFromPatreon = true;
-            _sponsorService.UpdateSponsor(ref sponsor);
         }
-        // else case is it is a sponsor, but he already did a migration from patreon to github, so we dont need to do anything
-        return;
+        // User migrated again, here we check the difference and apply it
+        else if (sponsor.PatreonMigration != null && sponsor.PatreonMigration != default)
+        {
+            var diff = sponsor.PatreonMigration.GetDifference(sponsorSwitchEvent.TotalSpendInCentInOtherInstance);
+            if (diff <= 0) return;
+            sponsor.TotalSpendInCent += diff;
+            sponsor.PatreonMigration.LifetimeAmountinCent += diff;
+        }
+        // User already sponsor us on GitHub, but has no migration yet done for patreon
+        else if (sponsor.PatreonMigration == null)
+        {
+            sponsor.TotalSpendInCent += sponsorSwitchEvent.TotalSpendInCentInOtherInstance + invenctive;
+            sponsor.PatreonMigration = new PatreonMigration
+            {
+                PatreonId = sponsorSwitchEvent.PatreonId,
+                LifetimeAmountinCent = sponsorSwitchEvent.TotalSpendInCentInOtherInstance
+            };
+        }
+        if (sponsor != null)
+            _sponsorService.UpdateSponsor(ref sponsor);
+
+        static bool IsDuping(Sponsor sponsor, Sponsor? patreonGuidSponsor)
+        {
+            return patreonGuidSponsor != null && sponsor == null || patreonGuidSponsor != null && sponsor != null && sponsor.DatabaseId != patreonGuidSponsor.DatabaseId;
+        }
     }
 }

@@ -5,6 +5,10 @@ using Microsoft.AspNetCore.Cors.Infrastructure;
 using Quartz;
 using Microsoft.AspNetCore.HttpOverrides;
 using github_sponsors_webhook.Database;
+using GithubSponsorsWebhook;
+
+//Cache it.
+Configuration.GetConfiguration();
 
 var builder = WebApplication.CreateBuilder(args);
 

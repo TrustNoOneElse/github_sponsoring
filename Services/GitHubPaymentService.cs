@@ -39,25 +39,14 @@ public class GitHubPaymentService : IGitHubPaymentService
 
     public bool HasPayedMinimum(Sponsor sponsor)
     {
-
-        var minimumSpendInCent = Environment.GetEnvironmentVariable("MINIMUM_SPEND_IN_CENT");
-        if (minimumSpendInCent == null)
-        {
-            _logger.LogCritical("Environment variable MINIMUM_SPEND_IN_CENT is not set.");
-            return false;
-        }
-        return sponsor.TotalSpendInCent >= int.Parse(minimumSpendInCent);
+        var minimumSpendInCent = Configuration.GetConfiguration().MinimumSpendInCent;
+        return sponsor.TotalSpendInCent >= minimumSpendInCent;
     }
 
     public bool HasPayedLifetime(Sponsor sponsor)
     {
-        var lifetimeSpendInCent = Environment.GetEnvironmentVariable("LIFETIME_SPEND_IN_CENT");
-        if (lifetimeSpendInCent == null)
-        {
-            _logger.LogCritical("Environment variable LIFETIME_SPEND_IN_CENT is not set.");
-            return false;
-        }
-        return sponsor.TotalSpendInCent >= int.Parse(lifetimeSpendInCent);
+        var lifetimeSpendInCent = Configuration.GetConfiguration().LifetimeSpendInCent;
+        return sponsor.TotalSpendInCent >= lifetimeSpendInCent;
     }
 
 
