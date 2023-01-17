@@ -6,7 +6,7 @@ public class SponsorSwitchDto
 {
     public string token { get; set; }
 
-    public int lifetimeAmountinCent { get; set; }
+    public long lifetimeAmountinCent { get; set; }
 
     public Guid patreonId { get; set; }
 }

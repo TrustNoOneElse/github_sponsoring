@@ -201,18 +201,7 @@ public class SponsorshipService : ISponsorshipService
             _logger.LogInformation("User with patreonId " + sponsorSwitchEvent.PatreonId + " tried to create another github account.");
             return;
         }
-        var incentiveEnv = Environment.GetEnvironmentVariable("INCENTIVE_FOR_SWITCH");
-        if (incentiveEnv == null)
-        {
-            _logger.LogCritical("Please set the enviroment variable: INCENTIVE_FOR_SWITCH");
-            return;
-        }
-        if(!int.TryParse(incentiveEnv, out var invenctive)) {
-            _logger.LogCritical("INCENTIVE_FOR_SWITCH needs to be an number in this format: 20");
-            return;
-        }
-        // convert to cent
-        invenctive *= 100; 
+        var invenctive = Configuration.GetConfiguration().MigrationIncentiveInCent;
         // User did not sponsor us on GitHub and its is first migration
         if (sponsor == null)
         {

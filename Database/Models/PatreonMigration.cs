@@ -4,15 +4,15 @@ namespace GithubSponsorsWebhook.Database.Models;
 
 public class PatreonMigration
 {
-    public int LifetimeAmountinCent { get; set; }
+    public long LifetimeAmountinCent { get; set; }
     public Guid PatreonId { get; set; }
 
-    public bool HasHigherAmount(int amount)
+    public bool HasHigherAmount(long amount)
     {
         return amount > LifetimeAmountinCent;
     }
 
-    public int GetDifference(int amount)
+    public long GetDifference(long amount)
     {
         if (HasHigherAmount(amount))
             return amount - LifetimeAmountinCent;

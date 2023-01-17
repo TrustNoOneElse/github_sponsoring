@@ -14,7 +14,7 @@ public class Sponsor
 
     public GithubType GithubType { get; set; }
 
-    public int TotalSpendInCent { get; set; }
+    public long TotalSpendInCent { get; set; }
 
     public Tier? CurrentTier { get; set; }
 

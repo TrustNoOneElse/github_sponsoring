@@ -13,13 +13,11 @@ public class GitHubWebhookController : ControllerBase
 {
     private readonly ILogger<GitHubWebhookController> _logger;
     private readonly ISponsorshipService _sponsorshipService;
-    private readonly IWebHostEnvironment _env;
 
-    public GitHubWebhookController(ILogger<GitHubWebhookController> logger, ISponsorshipService sponsorshipService, IWebHostEnvironment env)
+    public GitHubWebhookController(ILogger<GitHubWebhookController> logger, ISponsorshipService sponsorshipService)
     {
         _logger = logger;
         _sponsorshipService = sponsorshipService;
-        _env = env;
     }
 
 

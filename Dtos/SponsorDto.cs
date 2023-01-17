@@ -13,7 +13,7 @@ public struct SponsorDto
     public bool payedLifetime { get; set; }
     public bool payedMinimum { get; set; }
     public DateTime firstSponsoredAt { get; set; }
-    public int totalSpendInCent { get; set; }
+    public long totalSpendInCent { get; set; }
     public int databaseId { get; set; }
 
 }

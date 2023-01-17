@@ -6,6 +6,6 @@ public class SponsorSwitchEvent
     public string LoginName { get; set; }
     public Guid PatreonId { get; set; }
     public GithubType GithubType { get; set; }
-    public int TotalSpendInCentInOtherInstance { get; set; }
+    public long TotalSpendInCentInOtherInstance { get; set; }
 }
 

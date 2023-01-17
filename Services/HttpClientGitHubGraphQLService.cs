@@ -8,31 +8,26 @@ public class HttpClientGitHubGraphQLService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<HttpClientGitHubGraphQLService> _logger;
-    private readonly Uri baseUrl = new Uri("https://api.github.com/graphql");
+    private readonly Uri baseUrl = new("https://api.github.com/graphql");
 
     public HttpClientGitHubGraphQLService(HttpClient httpClient, ILogger<HttpClientGitHubGraphQLService> logger)
     {
         _httpClient = httpClient;
         _logger = logger;
-
+        
         _httpClient.BaseAddress = baseUrl;
         // The GitHub GraphQL API requires Authorization header .
-        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_TOKEN")))
-        {
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", Environment.GetEnvironmentVariable("GITHUB_TOKEN"));
-        }
-        else
-        {
-            _logger.LogCritical("GITHUB_TOKEN is not set, please set it in the environment variables");
-        }
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", Configuration.GetConfiguration().GithubToken);
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "GithubSponsorsWebhook");
     }
 
     public async Task<ViewerResponse?> GetUserByToken(string token)
     {
-        var requestContent = new GraphQLRequest();
-        requestContent.query = GraphQLQueries.GetCurrentViewerQuery;
+        var requestContent = new GraphQLRequest
+        {
+            query = GraphQLQueries.GetCurrentViewerQuery
+        };
         var request = new HttpRequestMessage()
         {
             RequestUri = baseUrl,
@@ -47,9 +42,11 @@ public class HttpClientGitHubGraphQLService
 
     public async Task<bool> GetViewerIsSponsoringFor(string loginName)
     {
-        var requestContent = new GraphQLRequest();
-        requestContent.query = GraphQLQueries.GetViewerIsSponsoringForQuery;
-        requestContent.variables = new Variables() { loginName = loginName };
+        var requestContent = new GraphQLRequest
+        {
+            query = GraphQLQueries.GetViewerIsSponsoringForQuery,
+            variables = new Variables() { loginName = loginName }
+        };
         var request = new HttpRequestMessage()
         {
             RequestUri = baseUrl,
@@ -72,9 +69,11 @@ public class HttpClientGitHubGraphQLService
 
     public async Task<SponsorResponse> GetIsSponsoringViewer(string loginName)
     {
-        var requestContent = new GraphQLRequest();
-        requestContent.query = GraphQLQueries.GetIsSponsoringViewerQuery;
-        requestContent.variables = new Variables() { loginName = loginName };
+        var requestContent = new GraphQLRequest
+        {
+            query = GraphQLQueries.GetIsSponsoringViewerQuery,
+            variables = new Variables() { loginName = loginName }
+        };
         var request = new HttpRequestMessage()
         {
             RequestUri = baseUrl,
@@ -88,9 +87,11 @@ public class HttpClientGitHubGraphQLService
 
     public async Task<SponsorResponse> GetSponsorByLoginForViewer(string login)
     {
-        var requestContent = new GraphQLRequest();
-        requestContent.query = GraphQLQueries.GetSponsorByLoginForViewerQuery;
-        requestContent.variables = new Variables() { loginName = login };
+        var requestContent = new GraphQLRequest
+        {
+            query = GraphQLQueries.GetSponsorByLoginForViewerQuery,
+            variables = new Variables() { loginName = login }
+        };
         var request = new HttpRequestMessage()
         {
             RequestUri = baseUrl,
