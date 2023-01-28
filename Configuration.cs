@@ -22,9 +22,9 @@ namespace GithubSponsorsWebhook
             /// </summary>
             public long LifetimeSpendInCent { get; set; }
             /// <summary>
-            /// Amount to contribute to Lifetime when mitigating from another platform.
+            /// Amount to contribute to Lifetime when creating a Github Account.
             /// </summary>
-            public long MigrationIncentiveInCent { get; set; }
+            public long NewAccountIncentiveInCent { get; set; }
             /// <summary>
             /// Token for GitHub.
             /// </summary>

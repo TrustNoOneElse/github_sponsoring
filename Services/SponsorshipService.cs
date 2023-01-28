@@ -141,13 +141,23 @@ public class SponsorshipService : ISponsorshipService
         var sponsor = _sponsorService.FindSponsor(sponsorEvent.DatabaseId, sponsorEvent.GithubType);
         if (sponsor == null || sponsor == default)
         {
+            var incentive = Configuration.GetConfiguration().NewAccountIncentiveInCent;
             sponsor = new Sponsor
             {
                 DatabaseId = sponsorEvent.DatabaseId,
                 LoginName = sponsorEvent.LoginName,
                 GithubType = sponsorEvent.GithubType,
-                TotalSpendInCent = 0,
-                FirstSponsoredAt = DateTime.Now
+                TotalSpendInCent = incentive,
+                FirstSponsoredAt = DateTime.Now,
+                Payments = new List<OneTimePayment>
+                {
+                    new OneTimePayment
+                    {
+                        TotalInCent = (int)incentive,
+                        CreatedAt = DateTime.Now,
+                        Description = "New Account Incentive"
+                    }
+                },
             };
         }
         else
@@ -161,8 +171,8 @@ public class SponsorshipService : ISponsorshipService
             var oneTimePayment = new OneTimePayment
             {
                 TotalInCent = sponsorEvent.Tier.monthly_price_in_cents,
-                TotalInDollar = sponsorEvent.Tier.monthly_price_in_dollars,
-                CreatedAt = sponsorEvent.Tier.created_at
+                CreatedAt = sponsorEvent.Tier.created_at,
+                Description = sponsorEvent.Tier.name
             };
             sponsor.Payments ??= new List<OneTimePayment>();
             sponsor.Payments.Add(oneTimePayment);
@@ -201,11 +211,11 @@ public class SponsorshipService : ISponsorshipService
             _logger.LogInformation("User with patreonId " + sponsorSwitchEvent.PatreonId + " tried to create another github account.");
             return;
         }
-        var invenctive = Configuration.GetConfiguration().MigrationIncentiveInCent;
         // User did not sponsor us on GitHub and its is first migration
         if (sponsor == null)
         {
-            var totalSpendInCent = sponsorSwitchEvent.TotalSpendInCentInOtherInstance + invenctive;
+            var incentive = Configuration.GetConfiguration().NewAccountIncentiveInCent;
+            var totalSpendInCent = sponsorSwitchEvent.TotalSpendInCentInOtherInstance + incentive;
             sponsor = new Sponsor
             {
                 DatabaseId = sponsorSwitchEvent.DatabaseId,
@@ -217,6 +227,13 @@ public class SponsorshipService : ISponsorshipService
                 {
                     PatreonId = sponsorSwitchEvent.PatreonId,
                     LifetimeAmountinCent = totalSpendInCent
+                },
+                Payments = new List<OneTimePayment> { new OneTimePayment
+                {
+                    CreatedAt = DateTime.Now,
+                    Description = "New Account Incentive",
+                    TotalInCent = (int)incentive
+                    }
                 }
             };
         }
@@ -231,7 +248,7 @@ public class SponsorshipService : ISponsorshipService
         // User already sponsor us on GitHub, but has no migration yet done for patreon
         else if (sponsor.PatreonMigration == null)
         {
-            sponsor.TotalSpendInCent += sponsorSwitchEvent.TotalSpendInCentInOtherInstance + invenctive;
+            sponsor.TotalSpendInCent += sponsorSwitchEvent.TotalSpendInCentInOtherInstance;
             sponsor.PatreonMigration = new PatreonMigration
             {
                 PatreonId = sponsorSwitchEvent.PatreonId,

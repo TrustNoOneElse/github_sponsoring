@@ -6,6 +6,7 @@ using Quartz;
 using Microsoft.AspNetCore.HttpOverrides;
 using github_sponsors_webhook.Database;
 using GithubSponsorsWebhook;
+using GithubSponsorsWebhook.Database.Models;
 
 //Cache it.
 Configuration.GetConfiguration();
@@ -95,4 +96,26 @@ app.UseHttpLogging();
 app.MapControllers();
 #endregion App Configuration
 
+// One time job for newAccountIncentive
+var dbService = app.Services.GetService<ILiteDbSponsorService>();
+var allSpoonsors = dbService.FindAll();
+foreach (var sponsor in allSpoonsors)
+{
+    var incentive = Configuration.GetConfiguration().NewAccountIncentiveInCent;
+    sponsor.TotalSpendInCent += incentive;
+    sponsor.Payments ??= new List<OneTimePayment>();
+    sponsor.Payments.Add(new OneTimePayment
+    {
+        TotalInCent = (int)incentive,
+        CreatedAt = DateTime.Now,
+        Description = "New Account Incentive"
+    });
+}
+
+dbService.UpdateSponsors(allSpoonsors);
+// end of one time job
+
 app.Run();
+
+
+
