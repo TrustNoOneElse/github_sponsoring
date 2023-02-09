@@ -25,12 +25,14 @@ public class GitHubWebhookController : ControllerBase
     [Consumes("application/json")]
     public async Task<IActionResult> Sponsorship()
     {
+        _logger.LogDebug("Recieved Webhook");
         JsonDocument? json = null;
         using (var reader = new StreamReader(Request.Body))
         {
             var jsonPayload = await reader.ReadToEndAsync();
             json = JsonDocument.Parse(jsonPayload);
         }
+        _logger.LogDebug("Parsed Webhook");
         JsonElement root = json.RootElement;
         // Check if its a sponsorship Event
         if (root.TryGetProperty("action", out JsonElement action))
@@ -57,6 +59,7 @@ public class GitHubWebhookController : ControllerBase
             return Unauthorized();
         }
         json.Dispose();
+        _logger.LogDebug("Webhook handled correctly");
         return Ok();
     }
 

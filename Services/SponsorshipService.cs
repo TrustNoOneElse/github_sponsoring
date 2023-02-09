@@ -54,6 +54,7 @@ public class SponsorshipService : ISponsorshipService
     */
     public void ProcessSponsorEvent(SponsorEvent sponsorEvent)
     {
+        _logger.LogDebug("Recieved sponsor event {0}", sponsorEvent.Action);
         if (sponsorEvent.Action == GitHubAction.CREATED)
         {
             CreateSponsor(sponsorEvent);
@@ -66,6 +67,7 @@ public class SponsorshipService : ISponsorshipService
         {
             DeleteSponsor(sponsorEvent);
         }
+        _logger.LogDebug("Handled sponsor event {0}", sponsorEvent.Action);
     }
 
     private void DeleteSponsor(SponsorEvent sponsorEvent)
@@ -89,9 +91,10 @@ public class SponsorshipService : ISponsorshipService
     private void UpdateSponsor(SponsorEvent sponsorEvent)
     {
         var sponsor = _sponsorService.FindSponsor(sponsorEvent.DatabaseId, sponsorEvent.GithubType);
+        _logger.LogInformation($"Try to find sponsor with databaseId: {sponsorEvent.DatabaseId} as {sponsorEvent.GithubType} with name {sponsorEvent.LoginName} {(sponsor != null ? "found" : "not found")}");
         if (sponsor != null && sponsor != default)
         {
-            _logger.LogDebug("Updating sponsor {0}", sponsor.LoginName);
+            _logger.LogInformation("Updating sponsor {0}", sponsor.LoginName);
             // Login Name can change
             if (sponsor.LoginName != sponsorEvent.LoginName)
             {
@@ -112,7 +115,7 @@ public class SponsorshipService : ISponsorshipService
                 };
                 sponsor.CurrentTier = newTier;
                 sponsor.TotalSpendInCent += sponsorEvent.Tier.monthly_price_in_cents;
-                _logger.LogDebug("Updated tier for sponsor {0}", sponsor.LoginName);
+                _logger.LogInformation("Updating tier for sponsor {0}", sponsor.LoginName);
             }
             // API doesnt clearly say it, but they could change from one time payment to an actual tier
             else
@@ -126,9 +129,10 @@ public class SponsorshipService : ISponsorshipService
                 };
                 sponsor.CurrentTier = tier;
                 sponsor.TotalSpendInCent += sponsorEvent.Tier.monthly_price_in_cents;
-                _logger.LogDebug("created tier for sponsor {0}", sponsor.LoginName);
+                _logger.LogInformation("Creating tier for sponsor {0}", sponsor.LoginName);
             }
             _sponsorService.UpdateSponsor(ref sponsor);
+            _logger.LogInformation("Updated sponsor {0}", sponsor.LoginName);
         }
     }
 
@@ -139,6 +143,7 @@ public class SponsorshipService : ISponsorshipService
     private void CreateSponsor(SponsorEvent sponsorEvent)
     {
         var sponsor = _sponsorService.FindSponsor(sponsorEvent.DatabaseId, sponsorEvent.GithubType);
+        _logger.LogInformation($"Try to find sponsor with databaseId: {sponsorEvent.DatabaseId} as {sponsorEvent.GithubType} with name {sponsorEvent.LoginName} {(sponsor != null ? "found" : "not found")}");
         if (sponsor == null || sponsor == default)
         {
             var incentive = Configuration.GetConfiguration().NewAccountIncentiveInCent;
@@ -159,6 +164,7 @@ public class SponsorshipService : ISponsorshipService
                     }
                 },
             };
+            _logger.LogInformation("Creating sponsor {0}", sponsorEvent.LoginName);
         }
         else
         {
@@ -176,6 +182,7 @@ public class SponsorshipService : ISponsorshipService
             };
             sponsor.Payments ??= new List<OneTimePayment>();
             sponsor.Payments.Add(oneTimePayment);
+            _logger.LogInformation("Creating one time payment for sponsor {0}", sponsor.LoginName);
         }
         else
         {
@@ -194,8 +201,10 @@ public class SponsorshipService : ISponsorshipService
             };
             sponsor.TotalSpendInCent += sponsorEvent.Tier.monthly_price_in_cents;
             sponsor.CurrentTier = tier;
+            _logger.LogInformation("Creating tier for sponsor {0}", sponsor.LoginName);
         }
         _sponsorService.UpdateSponsor(ref sponsor);
+        _logger.LogInformation("Updated sponsor {0}", sponsor.LoginName);
     }
 
     /**
