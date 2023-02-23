@@ -4,5 +4,13 @@ query {
     email
     name
     databaseId
+    organizations(first: 100) {
+      edges {
+        node {
+          databaseId
+          login
+        }
+      }
+    }
   }
 }
