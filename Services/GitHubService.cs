@@ -1,3 +1,5 @@
+using github_sponsors_webhook.Database;
+using GithubSponsorsWebhook.Database;
 using GithubSponsorsWebhook.Dtos;
 using GithubSponsorsWebhook.GitHubGraphQLModels;
 
@@ -7,10 +9,12 @@ public class GitHubService : IGitHubService
 {
     private readonly HttpClientGitHubGraphQLService _httpClient;
     private readonly ILogger<GitHubService> _logger;
-    public GitHubService(HttpClientGitHubGraphQLService httpClient, ILogger<GitHubService> logger)
+    private readonly ILiteDbSponsorService _liteDbService;
+    public GitHubService(HttpClientGitHubGraphQLService httpClient, ILogger<GitHubService> logger, ILiteDbSponsorService dbSponsorService)
     {
         _httpClient = httpClient;
         _logger = logger;
+        _liteDbService = dbSponsorService;
     }
 
     public async Task<List<SponsorDto>> GetAllSponsors()
@@ -57,6 +61,19 @@ public class GitHubService : IGitHubService
             var response = await _httpClient.GetUserByToken(token);
             if (response.HasValue)
             {
+                var edges = response.Value.data.viewer.organizations?.edges;
+                if (edges?.Length > 0)
+                {
+                    var orgsFromDb = _liteDbService.FindAll().Where(x => x.GithubType == Models.GithubType.ORGANIZATION).ToList();
+                    OrganizationEdge? matchOrg = Array.Find(edges, x =>
+                    {
+                        return orgsFromDb.Find(y => x.node.login == y.LoginName) != null;
+                    });
+                    if(matchOrg != null)
+                    {
+                        return await GetSponsorDataByLogin(matchOrg.node.login);
+                    }
+                }
                 return await GetSponsorDataByLogin(response.Value.data.viewer.login);
             }
         }
